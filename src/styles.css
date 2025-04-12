@@ -1,0 +1,125 @@
+/* === styles.css === */
+:root {
+  --ravens-purple: #241773;
+  --ravens-black: #000000;
+  --ravens-gold: #9E7C0C;
+  --ravens-metallic-gold: #B0945C;
+  --text: #ffffff;
+  --card-bg: #1a1a1a;
+}
+
+body {
+  background-color: var(--ravens-black);
+  color: var(--text);
+  font-family: 'Roboto', 'Segoe UI', sans-serif;
+  margin: 0;
+  padding: 2rem;
+  background-image:
+    linear-gradient(rgba(36, 23, 115, 0.2), rgba(0, 0, 0, 0.9)),
+    url('https://upload.wikimedia.org/wikipedia/en/4/4e/Baltimore_Ravens_logo.svg');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+  min-height: 100vh;
+}
+
+.app {
+  max-width: 800px;
+  margin: 0 auto;
+  background-color: rgba(26, 26, 26, 0.9);
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 0 20px var(--ravens-purple);
+  border: 1px solid var(--ravens-metallic-gold);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 2rem;
+}
+
+.logo {
+  width: 64px;
+  height: 64px;
+}
+
+.title {
+  font-size: 2rem;
+  color: var(--ravens-metallic-gold);
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 2rem;
+}
+
+input {
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid var(--ravens-metallic-gold);
+  background-color: #ffffff;
+  color: #000;
+  font-size: 1rem;
+}
+
+input::placeholder {
+  color: #666;
+}
+
+button {
+  background-color: var(--ravens-purple);
+  color: var(--text);
+  padding: 12px 20px;
+  border: 2px solid var(--ravens-metallic-gold);
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: all 0.3s ease;
+  margin-right: 8px;
+}
+
+button:hover {
+  background-color: var(--ravens-gold);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.card {
+  background-color: var(--card-bg);
+  padding: 1.5rem;
+  border-radius: 10px;
+  margin-bottom: 2rem;
+  border: 1px solid var(--ravens-purple);
+}
+
+h1, h2 {
+  color: var(--ravens-purple);
+  margin-top: 0;
+}
+
+ul,
+ol {
+  padding-left: 1.5rem;
+}
+
+ul li,
+ol li {
+  margin-bottom: 6px;
+}
+
+strong {
+  color: var(--ravens-gold);
+}
+
+.admin-controls button {
+  margin-right: 6px;
+  margin-top: 4px;
+}
