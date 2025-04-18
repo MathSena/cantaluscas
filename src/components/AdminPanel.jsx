@@ -106,9 +106,9 @@ export default function AdminPanel() {
   return (
     <Box
       sx={{
-        maxWidth: '999px', // Largura máxima para centralizar o conteúdo
-        margin: '0 auto',
-        padding: '16px',
+        maxWidth: { xs: '100%', sm: '600px', md: '800px' }, // Responsivo: largura total em telas pequenas, 600px em médias e 800px em grandes
+        margin: '0 auto', // Centraliza horizontalmente
+        padding: { xs: '8px', sm: '16px' }, // Padding responsivo
       }}
     >
       <Card
@@ -170,38 +170,47 @@ export default function AdminPanel() {
                       color: '#b0b0b0',
                     }}
                   />
-                  <Stack direction="row" spacing={1}>
-                    {item.status === 'waiting' && (
-                      <Button
-                        variant="contained"
-                        color="primary"
-                        onClick={() => handlePlayNow(item.id)}
-                        sx={{
-                          borderRadius: '12px',
-                          textTransform: 'none',
-                          fontWeight: 'bold',
-                          backgroundColor: '#5e35b1',
-                          '&:hover': {
-                            backgroundColor: '#7e57c2',
-                          },
-                        }}
-                      >
-                        ▶️ Tocar Agora
-                      </Button>
-                    )}
-                    <Button
-                      variant="outlined"
-                      color="error"
-                      onClick={() => handleDelete(item.id)}
-                      sx={{
-                        borderRadius: '12px',
-                        textTransform: 'none',
-                        fontWeight: 'bold',
-                      }}
-                    >
-                      Excluir
-                    </Button>
-                  </Stack>
+<Stack direction="row" spacing={1}>
+  {item.status === 'waiting' && (
+    <Button
+      variant="contained"
+      color="primary"
+      onClick={() => handlePlayNow(item.id)}
+      sx={{
+        borderRadius: '12px',
+        textTransform: 'none',
+        fontWeight: 'bold',
+        backgroundColor: '#5e35b1',
+        fontSize: { xs: '0.8rem', sm: '0.9rem', md: '1rem' }, // Tamanho responsivo do texto
+        padding: { xs: '6px 12px', sm: '8px 16px', md: '10px 20px' }, // Padding responsivo
+        '&:hover': {
+          backgroundColor: '#7e57c2',
+        },
+      }}
+    >
+      ▶️ Tocar Agora
+    </Button>
+  )}
+  <Button
+    variant="outlined"
+    color="error"
+    onClick={() => handleDelete(item.id)}
+    sx={{
+      borderRadius: '12px',
+      textTransform: 'none',
+      fontWeight: 'bold',
+      fontSize: { xs: '0.8rem', sm: '0.9rem', md: '1rem' }, // Tamanho responsivo do texto
+      padding: { xs: '6px 12px', sm: '8px 16px', md: '10px 20px' }, // Padding responsivo
+      borderWidth: { xs: '1px', sm: '1.5px', md: '2px' }, // Espessura da borda responsiva
+      '&:hover': {
+        backgroundColor: '#4B0082',
+        color: '#ffffff',
+      },
+    }}
+  >
+    Excluir
+  </Button>
+</Stack>
                 </ListItem>
               ))
             )}
