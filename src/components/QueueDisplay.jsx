@@ -55,13 +55,28 @@ export default function QueueDisplay({ reload }) {
   const upcoming = queue.filter((q) => q.status === 'waiting');
 
   return (
-    <Card elevation={3} sx={{ backgroundColor: 'background.paper' }}>
+    <Card
+      elevation={3}
+      sx={{
+        background: 'linear-gradient(135deg, #1e1e1e, #2c2c2c)',
+        borderRadius: '16px',
+        boxShadow: '0px 4px 10px rgba(0, 0, 0, 0.3)',
+        color: '#ffffff',
+      }}
+    >
       <CardContent>
-        <Typography variant="h6" fontWeight="bold" color="thirdy">
+        <Typography
+          variant="h6"
+          fontWeight="bold"
+          sx={{ color: '#FFD700', marginBottom: '8px' }}
+        >
           🎤 Agora cantando:
         </Typography>
         {current ? (
-          <Typography variant="subtitle1">
+          <Typography
+            variant="subtitle1"
+            sx={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#ffffff' }}
+          >
             <strong>{current.singer}</strong> cantando{' '}
             <em>{current.music}</em> ({current.artist})
           </Typography>
@@ -70,16 +85,36 @@ export default function QueueDisplay({ reload }) {
             Ninguém está cantando no momento.
           </Typography>
         )}
-        <Divider sx={{ my: 2 }} />
-        <Typography variant="h6" fontWeight="bold" color="thirdy">
+        <Divider sx={{ my: 2, borderColor: 'rgba(255, 255, 255, 0.2)' }} />
+        <Typography
+          variant="h6"
+          fontWeight="bold"
+          sx={{ color: '#FFD700', marginBottom: '8px' }}
+        >
           🎶 Próximas músicas:
         </Typography>
         <List>
           {upcoming.slice(0, 3).map((item) => (
-            <ListItem key={item.id}>
+            <ListItem
+              key={item.id}
+              sx={{
+                backgroundColor: '#2c2c2c',
+                borderRadius: '12px',
+                marginBottom: '8px',
+                padding: '12px',
+                boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.2)',
+              }}
+            >
               <ListItemText
                 primary={`${item.singer} → ${item.music}`}
                 secondary={item.artist}
+                primaryTypographyProps={{
+                  fontWeight: 'bold',
+                  color: '#ffffff',
+                }}
+                secondaryTypographyProps={{
+                  color: '#b0b0b0',
+                }}
               />
             </ListItem>
           ))}

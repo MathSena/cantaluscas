@@ -80,37 +80,91 @@ export default function AdminPanel() {
   };
 
   return (
-    <Card elevation={3} sx={{ backgroundColor: 'background.paper' }}>
+    <Card
+      elevation={3}
+      sx={{
+        backgroundColor: '#1e1e1e', // Fundo escuro
+        borderRadius: '16px',
+        padding: '16px',
+        color: '#ffffff', // Texto claro
+      }}
+    >
       <CardContent>
-        <Typography variant="h6" fontWeight="bold" color="secondary">
-          🎛 Painel Administrativo
+        <Typography
+          variant="h6"
+          fontWeight="bold"
+          color="#ffffff" // Texto claro
+          sx={{ marginBottom: '16px' }}
+        >
+          Painel Administrativo
         </Typography>
         <List>
           {queue.length === 0 && (
-            <Typography color="text.secondary">Nenhuma música na fila.</Typography>
+            <Typography color="text.secondary">
+              Nenhuma música na fila.
+            </Typography>
           )}
           {queue.map((item) => (
-            <ListItem key={item.id}>
+            <ListItem
+              key={item.id}
+              sx={{
+                backgroundColor: '#2c2c2c', // Fundo escuro para itens
+                borderRadius: '12px',
+                marginBottom: '8px',
+                boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.5)', // Sombra mais forte
+                padding: '16px',
+                color: '#ffffff', // Texto claro
+              }}
+            >
               <ListItemText
                 primary={`${item.singer} → ${item.music}`}
                 secondary={
                   item.artist +
                   (item.status === 'playing' ? ' 🎤 Tocando Agora' : '')
                 }
+                primaryTypographyProps={{
+                  fontWeight: 'bold',
+                  fontSize: '16px',
+                  color: '#ffffff', // Texto claro
+                }}
+                secondaryTypographyProps={{
+                  color: '#b0b0b0', // Texto secundário mais claro
+                  fontSize: '14px',
+                }}
               />
               <Stack direction="row" spacing={1}>
                 {item.status === 'waiting' && (
                   <Button
                     variant="contained"
-                    color="secondary"
+                    sx={{
+                      backgroundColor: '#007AFF',
+                      color: '#fff',
+                      borderRadius: '12px',
+                      textTransform: 'none',
+                      fontSize: '14px',
+                      padding: '8px 16px',
+                      '&:hover': {
+                        backgroundColor: '#005BB5',
+                      },
+                    }}
                     onClick={() => handlePlayNow(item.id)}
                   >
-                    ▶️ Tocar Agora
+                    Tocar Agora
                   </Button>
                 )}
                 <Button
                   variant="outlined"
-                  color="error"
+                  sx={{
+                    borderColor: '#FF3B30',
+                    color: '#FF3B30',
+                    borderRadius: '12px',
+                    textTransform: 'none',
+                    fontSize: '14px',
+                    padding: '8px 16px',
+                    '&:hover': {
+                      backgroundColor: 'rgba(255, 59, 48, 0.1)',
+                    },
+                  }}
                   onClick={() => handleDelete(item.id)}
                 >
                   Excluir
