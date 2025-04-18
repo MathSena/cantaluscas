@@ -1,6 +1,7 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
+  "short_name": "CantaLucas Karaoke",
+  "name": "CantaLucas Karaoke",
+  "description": "CantaLucas Karaoke is a web application that allows users to sing along with their favorite songs, providing a fun and interactive karaoke experience.",
   "icons": [
     {
       "src": "favicon.ico",
