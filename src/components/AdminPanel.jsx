@@ -8,29 +8,58 @@ import {
   ListItem,
   ListItemText,
   Button,
-  Stack
+  Stack,
+  Snackbar,
+  Alert,
+  Box,
 } from '@mui/material';
 
 export default function AdminPanel() {
   const [queue, setQueue] = useState([]);
+  const [showNotification, setShowNotification] = useState(false);
+  const [newSongInfo, setNewSongInfo] = useState('');
 
-  // função de busca isolada
   const fetchQueue = async () => {
     const { data, error } = await supabase
       .from('karaoke_queue')
       .select('*')
       .not('status', 'eq', 'done')
       .order('position', { ascending: true });
-    if (error) {
-      console.error('Erro ao carregar fila:', error);
-    } else {
-      setQueue(data || []);
-    }
+
+    if (error) console.error('Erro ao carregar fila:', error);
+    else setQueue(data || []);
   };
 
-  // efeito inicial
   useEffect(() => {
-    fetchQueue();
+    fetchQueue(); // busca inicial
+
+    const channel = supabase
+      .channel('realtime-admin-panel')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'karaoke_queue' },
+        (payload) => {
+          fetchQueue();
+          const { singer, music } = payload.new;
+          setNewSongInfo(`${singer} adicionou 🎵 ${music}`);
+          setShowNotification(true);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'karaoke_queue' },
+        () => fetchQueue()
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'karaoke_queue' },
+        () => fetchQueue()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const handleDelete = async (id) => {
@@ -39,11 +68,9 @@ export default function AdminPanel() {
       .delete()
       .eq('id', id);
     if (error) console.error('Erro ao deletar:', error);
-    else fetchQueue();
   };
 
   const handlePlayNow = async (id) => {
-    // marca a atual como done
     const { data: current } = await supabase
       .from('karaoke_queue')
       .select('id')
@@ -56,13 +83,13 @@ export default function AdminPanel() {
         .eq('id', current[0].id);
     }
 
-    // reordena waiting
     const { data: waiting } = await supabase
       .from('karaoke_queue')
       .select('*')
       .eq('status', 'waiting')
       .neq('id', id)
       .order('position');
+
     for (const [i, item] of waiting.entries()) {
       await supabase
         .from('karaoke_queue')
@@ -70,110 +97,133 @@ export default function AdminPanel() {
         .eq('id', item.id);
     }
 
-    // marca nova como tocando agora
     await supabase
       .from('karaoke_queue')
       .update({ is_playing: true, status: 'playing', position: 0 })
       .eq('id', id);
-
-    fetchQueue();
   };
 
   return (
-    <Card
-      elevation={3}
+    <Box
       sx={{
-        backgroundColor: '#1e1e1e', // Fundo escuro
-        borderRadius: '16px',
+        maxWidth: '999px', // Largura máxima para centralizar o conteúdo
+        margin: '0 auto',
         padding: '16px',
-        color: '#ffffff', // Texto claro
       }}
     >
-      <CardContent>
-        <Typography
-          variant="h6"
-          fontWeight="bold"
-          color="#ffffff" // Texto claro
-          sx={{ marginBottom: '16px' }}
-        >
-          Painel Administrativo
-        </Typography>
-        <List>
-          {queue.length === 0 && (
-            <Typography color="text.secondary">
-              Nenhuma música na fila.
-            </Typography>
-          )}
-          {queue.map((item) => (
-            <ListItem
-              key={item.id}
-              sx={{
-                backgroundColor: '#2c2c2c', // Fundo escuro para itens
-                borderRadius: '12px',
-                marginBottom: '8px',
-                boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.5)', // Sombra mais forte
-                padding: '16px',
-                color: '#ffffff', // Texto claro
-              }}
-            >
-              <ListItemText
-                primary={`${item.singer} → ${item.music}`}
-                secondary={
-                  item.artist +
-                  (item.status === 'playing' ? ' 🎤 Tocando Agora' : '')
-                }
-                primaryTypographyProps={{
-                  fontWeight: 'bold',
-                  fontSize: '16px',
-                  color: '#ffffff', // Texto claro
+      <Card
+        elevation={4}
+        sx={{
+          background: 'linear-gradient(135deg, #1e1e1e, #2c2c2c)',
+          borderRadius: '16px',
+          boxShadow: '0px 4px 10px rgba(0, 0, 0, 0.3)',
+          color: '#ffffff',
+        }}
+      >
+        <CardContent>
+          <Typography
+            variant="h5"
+            fontWeight="bold"
+            sx={{
+              color: '#FFD700',
+              marginBottom: '16px',
+              textAlign: 'center',
+              textShadow: '1px 1px 4px rgba(0, 0, 0, 0.5)',
+            }}
+          >
+            🎛 Painel Administrativo
+          </Typography>
+          <List>
+            {queue.length === 0 ? (
+              <Typography
+                color="text.secondary"
+                sx={{
+                  textAlign: 'center',
+                  marginTop: '16px',
                 }}
-                secondaryTypographyProps={{
-                  color: '#b0b0b0', // Texto secundário mais claro
-                  fontSize: '14px',
-                }}
-              />
-              <Stack direction="row" spacing={1}>
-                {item.status === 'waiting' && (
-                  <Button
-                    variant="contained"
-                    sx={{
-                      backgroundColor: '#007AFF',
-                      color: '#fff',
-                      borderRadius: '12px',
-                      textTransform: 'none',
-                      fontSize: '14px',
-                      padding: '8px 16px',
-                      '&:hover': {
-                        backgroundColor: '#005BB5',
-                      },
-                    }}
-                    onClick={() => handlePlayNow(item.id)}
-                  >
-                    Tocar Agora
-                  </Button>
-                )}
-                <Button
-                  variant="outlined"
+              >
+                Nenhuma música na fila.
+              </Typography>
+            ) : (
+              queue.map((item) => (
+                <ListItem
+                  key={item.id}
                   sx={{
-                    borderColor: '#FF3B30',
-                    color: '#FF3B30',
+                    backgroundColor: '#2c2c2c',
                     borderRadius: '12px',
-                    textTransform: 'none',
-                    fontSize: '14px',
-                    padding: '8px 16px',
-                    '&:hover': {
-                      backgroundColor: 'rgba(255, 59, 48, 0.1)',
-                    },
+                    marginBottom: '8px',
+                    padding: '12px',
+                    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.2)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
                   }}
-                  onClick={() => handleDelete(item.id)}
                 >
-                  Excluir
-                </Button>
-              </Stack>
-            </ListItem>
-          ))}
-        </List>
-      </CardContent>
-    </Card>
+                  <ListItemText
+                    primary={`${item.singer} → ${item.music}`}
+                    secondary={item.artist + (item.status === 'playing' ? ' 🎤 Tocando Agora' : '')}
+                    primaryTypographyProps={{
+                      fontWeight: 'bold',
+                      color: '#ffffff',
+                    }}
+                    secondaryTypographyProps={{
+                      color: '#b0b0b0',
+                    }}
+                  />
+                  <Stack direction="row" spacing={1}>
+                    {item.status === 'waiting' && (
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={() => handlePlayNow(item.id)}
+                        sx={{
+                          borderRadius: '12px',
+                          textTransform: 'none',
+                          fontWeight: 'bold',
+                          backgroundColor: '#5e35b1',
+                          '&:hover': {
+                            backgroundColor: '#7e57c2',
+                          },
+                        }}
+                      >
+                        ▶️ Tocar Agora
+                      </Button>
+                    )}
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      onClick={() => handleDelete(item.id)}
+                      sx={{
+                        borderRadius: '12px',
+                        textTransform: 'none',
+                        fontWeight: 'bold',
+                      }}
+                    >
+                      Excluir
+                    </Button>
+                  </Stack>
+                </ListItem>
+              ))
+            )}
+          </List>
+        </CardContent>
+      </Card>
+
+      <Snackbar
+        open={showNotification}
+        autoHideDuration={4000}
+        onClose={() => setShowNotification(false)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setShowNotification(false)}
+          severity="success"
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          ✅ {newSongInfo}
+        </Alert>
+      </Snackbar>
+    </Box>
   );
 }

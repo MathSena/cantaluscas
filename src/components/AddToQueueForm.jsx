@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import {
   TextField,
@@ -8,6 +8,8 @@ import {
   Modal,
   Box,
   Typography,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import './FootballAnimation.css'; // Arquivo CSS para a animação
 
@@ -16,12 +18,49 @@ export default function AddToQueueForm({ onMusicAdded }) {
   const [artist, setArtist] = useState('');
   const [music, setMusic] = useState('');
   const [open, setOpen] = useState(false);
-  const [position, setPosition] = useState(null);
   const [remaining, setRemaining] = useState(0);
+  const [notification, setNotification] = useState({ open: false, message: '', type: 'info' });
+
+  // Função para configurar a subscription e ouvir mudanças no status da música
+  useEffect(() => {
+    const channel = supabase
+      .channel('realtime-admin-panel') // canal correto
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'karaoke_queue' },
+        (payload) => {
+          console.log('Evento UPDATE recebido no AddToQueueForm:', payload);
+  
+          const { new: newData } = payload;
+          if (newData?.status === 'playing') {
+            setNotification({
+              open: true,
+              message: `🎶 Agora tocando: ${newData.singer} - "${newData.music}"`,
+              type: 'info'
+            });
+          }
+        }
+      )
+      .subscribe();
+  
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+  
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!singer || !artist || !music) return;
+
+    // Validações do formulário
+    if (!singer.trim() || !artist.trim() || !music.trim()) {
+      setNotification({
+        open: true,
+        message: 'Todos os campos são obrigatórios!',
+        type: 'error',
+      });
+      return;
+    }
 
     const { data: maxPosData } = await supabase
       .from('karaoke_queue')
@@ -49,7 +88,6 @@ export default function AddToQueueForm({ onMusicAdded }) {
     ]);
 
     if (!error) {
-      setPosition(nextPosition);
       setRemaining(waitingData.length);
       setOpen(true);
       setSinger('');
@@ -57,10 +95,22 @@ export default function AddToQueueForm({ onMusicAdded }) {
       setMusic('');
       onMusicAdded?.();
 
+      // Notificação de música adicionada
+      setNotification({
+        open: true,
+        message: `🎵 Música adicionada: ${singer} - "${music}"`,
+        type: 'success',
+      });
+
       // Fecha o modal automaticamente após 10 segundos
       setTimeout(() => setOpen(false), 10000);
     } else {
       console.error('Erro ao inserir:', error);
+      setNotification({
+        open: true,
+        message: 'Erro ao adicionar música. Tente novamente.',
+        type: 'error',
+      });
     }
   };
 
@@ -72,6 +122,8 @@ export default function AddToQueueForm({ onMusicAdded }) {
         background: 'linear-gradient(135deg, #1e1e1e, #2c2c2c)',
         borderRadius: '16px',
         boxShadow: '0px 4px 10px rgba(0, 0, 0, 0.3)',
+        maxWidth: '800px', // Aumentado para 800px
+        margin: '0 auto',
       }}
     >
       <form onSubmit={handleSubmit}>
@@ -132,7 +184,7 @@ export default function AddToQueueForm({ onMusicAdded }) {
         </Stack>
       </form>
 
-      {/* Modal para exibir posição na fila */}
+      {/* Modal para exibir mensagem de sucesso */}
       <Modal
         open={open}
         onClose={() => setOpen(false)}
@@ -159,9 +211,6 @@ export default function AddToQueueForm({ onMusicAdded }) {
           <Typography id="modal-title" variant="h6" fontWeight="bold">
             🎉 Música adicionada com sucesso!
           </Typography>
-          <Typography id="modal-description" sx={{ mt: 2 }}>
-            Sua posição na fila é: <strong>{position}</strong>
-          </Typography>
           <Typography sx={{ mt: 1 }}>
             Faltam <strong>{remaining}</strong> músicas para você cantar.
           </Typography>
@@ -175,6 +224,27 @@ export default function AddToQueueForm({ onMusicAdded }) {
           </Button>
         </Box>
       </Modal>
+
+      {/* Notificação */}
+      <Snackbar
+        open={notification.open}
+        autoHideDuration={4000}
+        onClose={() => setNotification({ ...notification, open: false })}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }} // Notificação no topo
+      >
+        <Alert
+          severity={notification.type}
+          variant="filled"
+          sx={{
+            width: '100%',
+            fontSize: '1rem',
+            fontWeight: 'bold',
+            textAlign: 'center',
+          }}
+        >
+          {notification.message}
+        </Alert>
+      </Snackbar>
     </Paper>
   );
 }
