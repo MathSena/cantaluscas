@@ -14,37 +14,57 @@ import {
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import { supabase } from '../supabaseClient';
 
-export default function QueueDisplay() {
+export default function QueueDisplay({ reload }) {
   const [queue, setQueue] = useState([]);
   const [notification, setNotification] = useState({ open: false, message: '', type: 'info' });
 
+  // busca a fila do supabase
   const fetchQueue = async () => {
     const { data, error } = await supabase
       .from('karaoke_queue')
       .select('*')
       .or('status.eq.waiting,status.eq.playing')
       .order('position', { ascending: true });
-    if (error) console.error(error);
-    else setQueue(data || []);
+    if (error) {
+      console.error(error);
+    } else {
+      setQueue(data || []);
+    }
   };
 
+  // 1) monta listener apenas uma vez para updates/insert/delete
   useEffect(() => {
     fetchQueue();
     const channel = supabase
-      .channel('karaoke_queue')
+      .channel('realtime-queue')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'karaoke_queue' }, (payload) => {
         fetchQueue();
-        const { eventType, new: n, old } = payload;
-        if (eventType === 'INSERT') {
-          setNotification({ open: true, message: `🎵 Nova: ${n.singer} – "${n.music}"`, type: 'success' });
+        if (payload.eventType === 'INSERT') {
+          setNotification({
+            open: true,
+            message: `🎵 Nova música: ${payload.new.singer} – "${payload.new.music}"`,
+            type: 'success',
+          });
         }
-        if (eventType === 'DELETE') {
-          setNotification({ open: true, message: `❌ Removida: ${old.singer} – "${old.music}"`, type: 'warning' });
+        if (payload.eventType === 'DELETE') {
+          setNotification({
+            open: true,
+            message: `❌ Música removida: ${payload.old.singer} – "${payload.old.music}"`,
+            type: 'warning',
+          });
         }
       })
       .subscribe();
-    return () => supabase.removeChannel(channel);
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
+
+  // 2) dispara fetchQueue sempre que reload mudar
+  useEffect(() => {
+    fetchQueue();
+  }, [reload]);
 
   const current = queue.find((q) => q.status === 'playing');
   const upcoming = queue.filter((q) => q.status === 'waiting');
@@ -95,14 +115,13 @@ export default function QueueDisplay() {
             <ListItemText
               primary={`${item.singer} → ${item.music}`}
               secondary={item.artist}
-              primaryTypographyProps={{ fontWeight: 'medium' }}
+              primaryTypographyProps={{ fontWeight: 'medium', color: '#fff' }}
               secondaryTypographyProps={{ color: '#bbb' }}
             />
           </ListItem>
         ))}
       </List>
 
-      {/* Snackbar */}
       <Snackbar
         open={notification.open}
         autoHideDuration={4000}
