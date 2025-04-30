@@ -11,7 +11,7 @@ import {
   Snackbar,
   Alert,
 } from '@mui/material';
-import './FootballAnimation.css'; // Arquivo CSS para a animação
+import './FootballAnimation.css';
 
 export default function AddToQueueForm({ onMusicAdded }) {
   const [singer, setSinger] = useState('');
@@ -20,230 +20,178 @@ export default function AddToQueueForm({ onMusicAdded }) {
   const [open, setOpen] = useState(false);
   const [remaining, setRemaining] = useState(0);
   const [notification, setNotification] = useState({ open: false, message: '', type: 'info' });
+  // estados para lógica de bloqueio local
+  const [lastInsertTime, setLastInsertTime] = useState(null);
+  const [lastInsertSinger, setLastInsertSinger] = useState(null);
 
-  // Função para configurar a subscription e ouvir mudanças no status da música
+  // 1) Ouve updates de “playing” para notificar quem está tocando
   useEffect(() => {
     const channel = supabase
-      .channel('realtime-admin-panel') // canal correto
+      .channel('realtime-playing')
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'karaoke_queue' },
-        (payload) => {
-          console.log('Evento UPDATE recebido no AddToQueueForm:', payload);
-  
-          const { new: newData } = payload;
-          if (newData?.status === 'playing') {
+        ({ new: newData }) => {
+          if (newData.status === 'playing') {
             setNotification({
               open: true,
               message: `🎶 Agora tocando: ${newData.singer} - "${newData.music}"`,
-              type: 'info'
+              type: 'info',
             });
           }
         }
       )
       .subscribe();
-  
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => supabase.removeChannel(channel);
   }, []);
-  
+
+  // 2) Se outro cantor adicionar, limpa o bloqueio
+  useEffect(() => {
+    if (!lastInsertSinger) return;
+    const channelIns = supabase
+      .channel('realtime-insert')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'karaoke_queue' },
+        (payload) => {
+          if (payload.new.singer !== lastInsertSinger) {
+            setLastInsertTime(null);
+            setLastInsertSinger(null);
+          }
+        }
+      )
+      .subscribe();
+    return () => supabase.removeChannel(channelIns);
+  }, [lastInsertSinger]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const singerName = singer.trim();
+    const artistName = artist.trim();
+    const musicName  = music.trim();
 
-    // Validações do formulário
-    if (!singer.trim() || !artist.trim() || !music.trim()) {
-      setNotification({
-        open: true,
-        message: 'Todos os campos são obrigatórios!',
-        type: 'error',
-      });
+    // Validação básica
+    if (!singerName || !artistName || !musicName) {
+      setNotification({ open: true, message: 'Todos os campos são obrigatórios!', type: 'error' });
       return;
     }
 
-    const { data: maxPosData } = await supabase
+    // Bloqueio de 5 minutos se for a MESMA pessoa e ninguém entrou na fila entre
+    if (lastInsertTime && lastInsertSinger === singerName) {
+      const diffMin = (Date.now() - lastInsertTime) / 1000 / 60;
+      if (diffMin < 5) {
+        const wait = Math.ceil(5 - diffMin);
+        setNotification({
+          open: true,
+          message: `⏳ Espere mais ${wait} min antes de adicionar outra.`,
+          type: 'warning',
+        });
+        return;
+      }
+    }
+
+    // Calcula próxima posição
+    const { data: maxPosData, error: errPos } = await supabase
       .from('karaoke_queue')
       .select('position')
       .eq('status', 'waiting')
       .order('position', { ascending: false })
       .limit(1);
-
+    if (errPos) console.error('Erro ao buscar posição:', errPos);
     const nextPosition = (maxPosData?.[0]?.position ?? 0) + 1;
 
-    const { data: waitingData } = await supabase
+    // Insere nova música
+    const { error: errInsert } = await supabase
       .from('karaoke_queue')
-      .select('*')
-      .or('status.eq.waiting,status.eq.playing');
-
-    const { error } = await supabase.from('karaoke_queue').insert([
-      {
-        singer,
-        artist,
-        music,
+      .insert([{
+        singer: singerName,
+        artist: artistName,
+        music: musicName,
         position: nextPosition,
         status: 'waiting',
         is_playing: false,
-      },
-    ]);
+      }]);
 
-    if (!error) {
-      setRemaining(waitingData.length);
+    if (errInsert) {
+      console.error('Erro ao adicionar música:', errInsert);
+      setNotification({ open: true, message: 'Erro ao adicionar música. Tente novamente.', type: 'error' });
+    } else {
+      // marca localmente o momento e quem inseriu
+      setLastInsertTime(Date.now());
+      setLastInsertSinger(singerName);
+
+      // conta quantas músicas estão na fila (waiting + playing)
+      const { count } = await supabase
+        .from('karaoke_queue')
+        .select('id', { count: 'exact', head: true })
+        .or('status.eq.waiting,status.eq.playing');
+      setRemaining((count ?? 1) - 1);
+
       setOpen(true);
       setSinger('');
       setArtist('');
       setMusic('');
       onMusicAdded?.();
 
-      // Notificação de música adicionada
-      setNotification({
-        open: true,
-        message: `🎵 Música adicionada: ${singer} - "${music}"`,
-        type: 'success',
-      });
-
-      // Fecha o modal automaticamente após 10 segundos
+      setNotification({ open: true, message: `🎵 Música adicionada: ${singerName} - "${musicName}"`, type: 'success' });
       setTimeout(() => setOpen(false), 10000);
-    } else {
-      console.error('Erro ao inserir:', error);
-      setNotification({
-        open: true,
-        message: 'Erro ao adicionar música. Tente novamente.',
-        type: 'error',
-      });
     }
   };
 
   return (
-    <Paper
-      elevation={3}
-      sx={{
-        p: 4,
-        background: 'linear-gradient(135deg, #1e1e1e, #2c2c2c)',
-        borderRadius: '16px',
-        boxShadow: '0px 4px 10px rgba(0, 0, 0, 0.3)',
-        maxWidth: '800px', // Aumentado para 800px
-        margin: '0 auto',
-      }}
-    >
+    <Paper elevation={3} sx={{ p: 4, background: 'linear-gradient(135deg, #1e1e1e, #2c2c2c)', borderRadius: '16px', maxWidth: '800px', margin: '0 auto' }}>
       <form onSubmit={handleSubmit}>
         <Stack spacing={3}>
           <TextField
-            label="Nome de quem vai cantar"
-            variant="outlined"
+            label="Quem vai cantar"
             fullWidth
             value={singer}
-            onChange={(e) => setSinger(e.target.value)}
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                borderRadius: '12px',
-              },
-            }}
+            onChange={e => setSinger(e.target.value)}
+            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
           />
           <TextField
             label="Artista original"
-            variant="outlined"
             fullWidth
             value={artist}
-            onChange={(e) => setArtist(e.target.value)}
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                borderRadius: '12px',
-              },
-            }}
+            onChange={e => setArtist(e.target.value)}
+            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
           />
           <TextField
             label="Nome da música"
-            variant="outlined"
             fullWidth
             value={music}
-            onChange={(e) => setMusic(e.target.value)}
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                borderRadius: '12px',
-              },
-            }}
+            onChange={e => setMusic(e.target.value)}
+            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
           />
           <Button
             variant="contained"
-            color="primary"
             type="submit"
             size="large"
-            sx={{
-              borderRadius: '12px',
-              textTransform: 'none',
-              fontWeight: 'bold',
-              transition: 'background-color 0.3s',
-              '&:hover': {
-                backgroundColor: '#5e35b1',
-              },
-            }}
+            sx={{ borderRadius: '12px', textTransform: 'none', fontWeight: 'bold', '&:hover': { backgroundColor: '#5e35b1' } }}
           >
             🎵 Adicionar à Fila
           </Button>
         </Stack>
       </form>
 
-      {/* Modal para exibir mensagem de sucesso */}
-      <Modal
-        open={open}
-        onClose={() => setOpen(false)}
-        aria-labelledby="modal-title"
-        aria-describedby="modal-description"
-      >
-        <Box
-          sx={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: 300,
-            bgcolor: 'background.paper',
-            borderRadius: '12px',
-            boxShadow: 24,
-            p: 4,
-            textAlign: 'center',
-          }}
-        >
+      <Modal open={open} onClose={() => setOpen(false)}>
+        <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 300, bgcolor: 'background.paper', borderRadius: '12px', p: 4, textAlign: 'center' }}>
           <div className="football-animation">
             <img src="/ball.webp" alt="Football" className="football" />
           </div>
-          <Typography id="modal-title" variant="h6" fontWeight="bold">
-            🎉 Música adicionada com sucesso!
-          </Typography>
-          <Typography sx={{ mt: 1 }}>
-            Faltam <strong>{remaining}</strong> músicas para você cantar.
-          </Typography>
-          <Button
-            variant="contained"
-            color="primary"
-            sx={{ mt: 3 }}
-            onClick={() => setOpen(false)}
-          >
-            Fechar
-          </Button>
+          <Typography variant="h6" fontWeight="bold">🎉 Música adicionada com sucesso!</Typography>
+          <Typography sx={{ mt: 1 }}>Faltam <strong>{remaining}</strong> músicas antes da sua vez.</Typography>
+          <Button variant="contained" sx={{ mt: 3 }} onClick={() => setOpen(false)}>Fechar</Button>
         </Box>
       </Modal>
 
-      {/* Notificação */}
       <Snackbar
         open={notification.open}
         autoHideDuration={4000}
         onClose={() => setNotification({ ...notification, open: false })}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }} // Notificação no topo
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
-        <Alert
-          severity={notification.type}
-          variant="filled"
-          sx={{
-            width: '100%',
-            fontSize: '1rem',
-            fontWeight: 'bold',
-            textAlign: 'center',
-          }}
-        >
-          {notification.message}
-        </Alert>
+        <Alert severity={notification.type} variant="filled">{notification.message}</Alert>
       </Snackbar>
     </Paper>
   );

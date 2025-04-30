@@ -66,7 +66,7 @@ export const Header = () => (
                 textTransform: 'uppercase', // Deixa o texto em maiúsculas
               }}
             >
-              KaraLucas
+              TRINTAOKÊ DO LUCAS
             </Typography>
         </Box>
       </Toolbar>
