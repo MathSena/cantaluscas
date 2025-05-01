@@ -67,7 +67,6 @@ export default function AdminPanel() {
   };
 
   const handlePlayNow = async (id) => {
-    // marca o atual como done
     const { data: current } = await supabase
       .from('karaoke_queue')
       .select('id')
@@ -81,7 +80,6 @@ export default function AdminPanel() {
         .eq('id', current[0].id);
     }
 
-    // reordena waiting
     const { data: waiting } = await supabase
       .from('karaoke_queue')
       .select('*')
@@ -96,7 +94,6 @@ export default function AdminPanel() {
         .eq('id', item.id);
     }
 
-    // marca o escolhido como playing
     await supabase
       .from('karaoke_queue')
       .update({ status: 'playing', is_playing: true, position: 0 })
@@ -104,7 +101,7 @@ export default function AdminPanel() {
   };
 
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
+    <Container maxWidth="md" sx={{ width: '100%', px: { xs: 2, sm: 4 }, py: { xs: 2, sm: 4 } }}>
       <Card
         elevation={4}
         sx={{
@@ -113,11 +110,16 @@ export default function AdminPanel() {
           color: '#fff',
         }}
       >
-        <CardContent>
+        <CardContent sx={{ px: { xs: 2, sm: 3 }, py: { xs: 2, sm: 3 } }}>
           <Typography
             variant="h5"
             fontWeight="bold"
-            sx={{ color: '#FFD700', textAlign: 'center', mb: 3 }}
+            sx={{
+              color: '#FFD700',
+              textAlign: 'center',
+              mb: 3,
+              fontSize: { xs: '1.25rem', sm: '1.5rem' },
+            }}
           >
             🎛 Painel Administrativo
           </Typography>
@@ -134,16 +136,18 @@ export default function AdminPanel() {
                   <ListItem
                     key={item.id}
                     sx={{
+                      display: 'flex',
+                      flexDirection: { xs: 'column', sm: 'row' },
+                      justifyContent: 'space-between',
+                      alignItems: { xs: 'flex-start', sm: 'center' },
                       background: isPlaying ? 'rgba(255,215,0,0.1)' : '#2c2c2c',
                       borderLeft: isPlaying ? '4px solid #FFD700' : 'none',
                       borderRadius: '12px',
                       mb: 2,
-                      p: 2,
-                      display: 'flex',
-                      alignItems: 'center',
+                      p: { xs: 2, sm: 3 },
                     }}
                   >
-                    <Box sx={{ mr: 2, color: '#FFD700', fontWeight: 'bold' }}>
+                    <Box sx={{ mr: { sm: 2 }, mb: { xs: 1, sm: 0 }, color: '#FFD700', fontWeight: 'bold' }}>
                       #{index + 1}
                     </Box>
                     <ListItemText
@@ -151,10 +155,16 @@ export default function AdminPanel() {
                       secondary={item.artist + (isPlaying ? ' 🎤 Tocando Agora' : '')}
                       primaryTypographyProps={{ fontWeight: 'medium', color: '#fff' }}
                       secondaryTypographyProps={{ color: '#bbb' }}
+                      sx={{ mb: { xs: 1, sm: 0 } }}
                     />
-                    <Stack direction="row" spacing={1}>
+                    <Stack
+                      direction={{ xs: 'column', sm: 'row' }}
+                      spacing={1}
+                      sx={{ width: { xs: '100%', sm: 'auto' } }}
+                    >
                       {!isPlaying && (
                         <Button
+                          fullWidth
                           variant="contained"
                           startIcon={<PlayArrowIcon />}
                           onClick={() => handlePlayNow(item.id)}
@@ -169,6 +179,7 @@ export default function AdminPanel() {
                         </Button>
                       )}
                       <Button
+                        fullWidth
                         variant="outlined"
                         color="error"
                         startIcon={<DeleteIcon />}
