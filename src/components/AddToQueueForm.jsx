@@ -26,8 +26,6 @@ export default function AddToQueueForm({ onMusicAdded }) {
   const [open, setOpen] = useState(false);
   const [remaining, setRemaining] = useState(0);
   const [notification, setNotification] = useState({ open: false, message: '', type: 'info' });
-  const [lastInsertTime, setLastInsertTime] = useState(null);
-  const [lastInsertSinger, setLastInsertSinger] = useState(null);
   const [loading, setLoading] = useState(false);
 
   // Notificação “Agora tocando”
@@ -51,25 +49,6 @@ export default function AddToQueueForm({ onMusicAdded }) {
     return () => supabase.removeChannel(channel);
   }, []);
 
-  // Se outra pessoa inseriu, libera o bloqueio
-  useEffect(() => {
-    if (!lastInsertSinger) return;
-    const channelIns = supabase
-      .channel('realtime-insert')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'karaoke_queue' },
-        (payload) => {
-          if (payload.new.singer !== lastInsertSinger) {
-            setLastInsertTime(null);
-            setLastInsertSinger(null);
-          }
-        }
-      )
-      .subscribe();
-    return () => supabase.removeChannel(channelIns);
-  }, [lastInsertSinger]);
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     const s = singer.trim();
@@ -80,23 +59,9 @@ export default function AddToQueueForm({ onMusicAdded }) {
       return;
     }
 
-    // bloqueio de 5 min se for o mesmo que inseriu por último
-    if (lastInsertTime && lastInsertSinger === s) {
-      const diffMin = (Date.now() - lastInsertTime) / 1000 / 60;
-      if (diffMin < 5) {
-        const wait = Math.ceil(5 - diffMin);
-        setNotification({
-          open: true,
-          message: `⏳ Aguarde mais ${wait} min.`,
-          type: 'warning',
-        });
-        return;
-      }
-    }
-
     setLoading(true);
     try {
-      // calcula posição
+      // Calcula posição
       const { data: maxPos } = await supabase
         .from('karaoke_queue')
         .select('position')
@@ -106,7 +71,7 @@ export default function AddToQueueForm({ onMusicAdded }) {
 
       const nextPosition = (maxPos?.[0]?.position ?? 0) + 1;
 
-      // insere
+      // Insere a música
       await supabase.from('karaoke_queue').insert([
         {
           singer: s,
@@ -118,10 +83,7 @@ export default function AddToQueueForm({ onMusicAdded }) {
         },
       ]);
 
-      setLastInsertTime(Date.now());
-      setLastInsertSinger(s);
-
-      // conta quantas músicas existem
+      // Conta quantas músicas existem
       const { count } = await supabase
         .from('karaoke_queue')
         .select('id', { count: 'exact', head: true })
@@ -244,7 +206,7 @@ export default function AddToQueueForm({ onMusicAdded }) {
             🎉 Música adicionada!
           </Typography>
           <Typography sx={{ mt: 1 }}>
-            Faltam <strong>{remaining}</strong> músicas antes da sua vez.
+Você vai cantar daqui <strong>{remaining}</strong> músicas
           </Typography>
           <Button variant="contained" sx={{ mt: 3 }} onClick={() => setOpen(false)}>
             Fechar
